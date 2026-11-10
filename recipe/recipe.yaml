@@ -76,6 +76,9 @@ requirements:
     - lz4-c
     # cxxopts is header-only (CLI arg parsing); found via find_package(cxxopts).
     - cxxopts
+  # libcloudini_lib has an unversioned SONAME: pin consumers to the minor release.
+  run_exports:
+    - ${{ pin_subpackage('cloudini', upper_bound='x.x') }}
 
 tests:
   # Assert the package actually shipped the library, headers, CMake config, and CLI.
