@@ -18,6 +18,9 @@ package:
 source:
   - url: https://github.com/facontidavide/cloudini/archive/refs/tags/${{ version }}.tar.gz
     sha256: aeb8b2409e21f41177f75aa9930853b99543b8f5840c83be60bc40a48ffc68b8
+    patches:
+      # MSVC has no __builtin_clzll; use the portable C++20 std::countl_zero.
+      - patches/0001-msvc-use-std-countl_zero.patch
   # mcap is a header-only dependency of the CLI and is not packaged for C++ on
   # conda-forge; fetch it here (network is available during the source stage but
   # NOT during the build script) and feed it in via -DMCAP_INCLUDE_DIR below.
@@ -26,21 +29,37 @@ source:
     target_directory: mcap-src
 
 build:
-  number: 0
-  skip: win
+  number: 1
   script:
-    # Locate the pre-fetched mcap headers regardless of the archive's top dir.
-    - MCAP_INCLUDE_DIR="$(find "$PWD/mcap-src" -type d -path '*/cpp/mcap/include' | head -1)"
-    - cmake ${CMAKE_ARGS} -GNinja -B build -S cloudini_lib
-        -DCMAKE_BUILD_TYPE=Release
-        -DBUILD_SHARED_LIBS=ON
-        -DCLOUDINI_FORCE_VENDORED_DEPS=OFF
-        -DCLOUDINI_BUILD_BENCHMARKS=OFF
-        -DBUILD_TESTING=OFF
-        -DMCAP_INCLUDE_DIR="${MCAP_INCLUDE_DIR}"
-        -DCMAKE_INSTALL_PREFIX=$PREFIX
-    - cmake --build build --parallel ${CPU_COUNT}
-    - cmake --install build
+    - if: win
+      then:
+        - cmake %CMAKE_ARGS% -GNinja -B build -S cloudini_lib
+            -DCMAKE_BUILD_TYPE=Release
+            -DBUILD_SHARED_LIBS=ON
+            -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON
+            -DCLOUDINI_FORCE_VENDORED_DEPS=OFF
+            -DCLOUDINI_BUILD_BENCHMARKS=OFF
+            -DBUILD_TESTING=OFF
+            -DMCAP_INCLUDE_DIR="%SRC_DIR%\mcap-src\cpp\mcap\include"
+            -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%"
+        - if errorlevel 1 exit 1
+        - cmake --build build --parallel %CPU_COUNT%
+        - if errorlevel 1 exit 1
+        - cmake --install build
+        - if errorlevel 1 exit 1
+      else:
+        # Locate the pre-fetched mcap headers regardless of the archive's top dir.
+        - MCAP_INCLUDE_DIR="$(find "$PWD/mcap-src" -type d -path '*/cpp/mcap/include' | head -1)"
+        - cmake ${CMAKE_ARGS} -GNinja -B build -S cloudini_lib
+            -DCMAKE_BUILD_TYPE=Release
+            -DBUILD_SHARED_LIBS=ON
+            -DCLOUDINI_FORCE_VENDORED_DEPS=OFF
+            -DCLOUDINI_BUILD_BENCHMARKS=OFF
+            -DBUILD_TESTING=OFF
+            -DMCAP_INCLUDE_DIR="${MCAP_INCLUDE_DIR}"
+            -DCMAKE_INSTALL_PREFIX=$PREFIX
+        - cmake --build build --parallel ${CPU_COUNT}
+        - cmake --install build
 
 requirements:
   build:
@@ -68,8 +87,8 @@ tests:
       bin:
         - cloudini_rosbag_converter
       files:
-        - lib/cmake/cloudini_lib/cloudini_libConfig.cmake
-        - lib/cmake/cloudini_lib/cloudini_libTargets.cmake
+        - ${{ "Library/lib" if win else "lib" }}/cmake/cloudini_lib/cloudini_libConfig.cmake
+        - ${{ "Library/lib" if win else "lib" }}/cmake/cloudini_lib/cloudini_libTargets.cmake
   # The CLI binary must load its shared library and start up.
   - script:
       - cloudini_rosbag_converter --help
