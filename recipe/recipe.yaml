@@ -9,7 +9,7 @@
 #   curl -sL https://github.com/facontidavide/cloudini/archive/refs/tags/${version}.tar.gz | sha256sum
 
 context:
-  version: "1.4.0"
+  version: "1.4.1"
 
 package:
   name: cloudini
@@ -17,7 +17,7 @@ package:
 
 source:
   - url: https://github.com/facontidavide/cloudini/archive/refs/tags/${{ version }}.tar.gz
-    sha256: aeb8b2409e21f41177f75aa9930853b99543b8f5840c83be60bc40a48ffc68b8
+    sha256: 0fb83aa71c665fc73fdaaf3eefb2f16282f554f3d326c626437467acb203f59b
   # mcap is a header-only dependency of the CLI and is not packaged for C++ on
   # conda-forge; fetch it here (network is available during the source stage but
   # NOT during the build script) and feed it in via -DMCAP_INCLUDE_DIR below.
@@ -31,14 +31,7 @@ build:
   script:
     # Locate the pre-fetched mcap headers regardless of the archive's top dir.
     - MCAP_INCLUDE_DIR="$(find "$PWD/mcap-src" -type d -path '*/cpp/mcap/include' | head -1)"
-    - cmake ${CMAKE_ARGS} -GNinja -B build -S cloudini_lib
-        -DCMAKE_BUILD_TYPE=Release
-        -DBUILD_SHARED_LIBS=ON
-        -DCLOUDINI_FORCE_VENDORED_DEPS=OFF
-        -DCLOUDINI_BUILD_BENCHMARKS=OFF
-        -DBUILD_TESTING=OFF
-        -DMCAP_INCLUDE_DIR="${MCAP_INCLUDE_DIR}"
-        -DCMAKE_INSTALL_PREFIX=$PREFIX
+    - cmake ${CMAKE_ARGS} -GNinja -B build -S cloudini_lib -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCLOUDINI_FORCE_VENDORED_DEPS=OFF -DCLOUDINI_BUILD_BENCHMARKS=OFF -DBUILD_TESTING=OFF -DMCAP_INCLUDE_DIR="${MCAP_INCLUDE_DIR}" -DCMAKE_INSTALL_PREFIX=$PREFIX
     - cmake --build build --parallel ${CPU_COUNT}
     - cmake --install build
 
